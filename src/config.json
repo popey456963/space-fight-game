@@ -1,0 +1,21 @@
+{
+    "owners": [
+        {
+            "id": "system",
+            "colour": "black"
+        },
+        {
+            "id": "user1",
+            "colour": "red"
+        },
+        {
+            "id": "user2",
+            "colour": "green"
+        }
+    ],
+    "options": {
+        "ships": {
+            "hitChance": 0.03
+        }
+    }
+}
