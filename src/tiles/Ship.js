@@ -6,7 +6,7 @@ export default class Ship extends Entity {
         const defaults = {
             owner: window.config.owners[0],
             size: new Loc(2, 2),
-            speed: 1,
+            speed: 0.15,
             type: 'ship'
         }
 
@@ -15,8 +15,14 @@ export default class Ship extends Entity {
     }
 
     setPosition(pos) {
-        this.travelling = true
+        this.startTravel()
         this.pos = pos
+    }
+
+    startTravel(pos) {
+        this.startingPos = pos.clone()
+        this.travelling = true
+        this.holdFire = Math.random() * 60
     }
 
     moveTo(planet, pos) {
@@ -28,8 +34,9 @@ export default class Ship extends Entity {
         if (this.travelling) {
             this.pos = this.pos.move(this.aim, this.speed)
 
-            if (this.pos.distanceTo(this.aim) < 0.5) {
+            if (this.pos.distanceTo(this.aim) < 0.1) {
                 // console.log('reached destination', this)
+                this.pos = this.aim
                 this.travelling = false
                 this.aimPlanet.addShip(this)
                 this.renderer.lightRemove(this)
@@ -40,7 +47,7 @@ export default class Ship extends Entity {
     render(t) {
         // ignore every other tick
         if (this.travelling) {
-            this.foreground.drawImage(this.pos, `${this.owner.colour}ShipIcon`, this.size, Math.atan2(this.aim.x - this.pos.x, this.pos.y - this.aim.y))
+            this.foreground.drawShip(this.pos, this.startingPos, this.owner.colour)
         }
     }
 

@@ -11,6 +11,7 @@ const buildPath = path.resolve(__dirname, 'dist');
 module.exports = {
     devtool: 'source-map',
     entry: './src/index.js',
+    mode: 'production',
     output: {
         filename: '[name].[hash:20].js',
         path: buildPath
@@ -94,7 +95,7 @@ module.exports = {
         new CleanWebpackPlugin(buildPath),
         new FaviconsWebpackPlugin({
             // Your source logo
-            logo: './src/assets/icon.png',
+            logo: './src/assets/blackhole.png',
             // The prefix for all image files (might be a folder or a name)
             prefix: 'icons-[hash]/',
             // Generate a cache file with control hashes and

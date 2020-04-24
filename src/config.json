@@ -2,23 +2,23 @@
     "owners": [
         {
             "id": "system",
-            "colour": "black"
+            "colour": [255, 255, 255]
         },
         {
             "id": "user1",
-            "colour": "red"
+            "colour": [255, 0, 0]
         },
         {
             "id": "user2",
-            "colour": "green"
+            "colour": [0, 255, 0]
         },
         {
             "id": "user3",
-            "colour": "blue"
+            "colour": [0, 255, 255]
         },
         {
             "id": "user4",
-            "colour": "purple"
+            "colour": [128, 0, 128]
         }
     ],
     "options": {

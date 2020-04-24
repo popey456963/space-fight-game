@@ -10,6 +10,23 @@ export default class Render {
         this.foreground = foreground
         this.clicked = false
         this.tickCount = 0
+        this.level = undefined
+
+        this.shouldDestroy = false
+    }
+
+    onKeyPress(event) {
+        console.log('key press', event)
+        if (this.level) {
+            if (event.charCode >= 48 && event.charCode <= 57) {
+                // user pressed a number key
+                this.level.onNumPress(event)
+            }
+        }
+    }
+
+    destroy() {
+        this.shouldDestroy = true
     }
 
     addObject(object, opts = {}) {
@@ -28,6 +45,10 @@ export default class Render {
 
     lightRemove(object) {
         this.lightObjects[object.id].delete = true
+    }
+
+    addLevel(level) {
+        this.level = level
     }
 
     firstRender() {
@@ -61,10 +82,17 @@ export default class Render {
             }
         }
 
+        this.level.tick(this.tickCount)
+
         this.tickCount += 1
 
         window.meter.tick()
-        window.requestAnimationFrame(this.tick.bind(this))
+
+        if (!this.shouldDestroy) {
+            window.requestAnimationFrame(this.tick.bind(this))
+        } else {
+            this.foreground.clear()
+        }
     }
 
     hits(pos) {
@@ -99,6 +127,7 @@ export default class Render {
         }
 
         window.state.inSelection.ours = {}
+
         // window.state.inSelection.target = {}
 
         this.clicked = false
@@ -117,6 +146,12 @@ export default class Render {
             if (hits['planet'] === 0 && hits['teleporter'] === 0) {
                 // not over planet
                 window.state.inSelection.target = { type: 'location', pos }
+            }
+        }
+
+        if (hits['turret'] === 0) {
+            for (let turret of this.level.objects['turret']) {
+                turret.hoverOver = false
             }
         }
 

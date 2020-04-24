@@ -1,5 +1,11 @@
 # Space Fighting
 
+> Cloned from https://github.com/lifenautjoe/webpack-starter-basic 
+
+## TODO
+
+- AI attack teleporters
+
 ## Requirements
 
 * [Node](https://nodejs.org) > 8.0

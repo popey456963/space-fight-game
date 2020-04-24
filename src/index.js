@@ -1,9 +1,8 @@
 import "regenerator-runtime/runtime.js";
-import LevelOne from './levels/LevelOne'
 import Canvas from './modules/Canvas'
 import Render from './modules/Render'
-import AI from './modules/AI'
 import { loadImages } from './utils/images'
+import { levels, LevelMenu, renderLevel } from './levels/levels'
 
 window.config = require('./config.json')
 
@@ -15,6 +14,8 @@ window.state = {
 window.user = window.config.owners[1]
 
 document.addEventListener("DOMContentLoaded", async () => {
+    console.log('content loaded')
+
     const images = await loadImages()
 
     const background = Canvas.init('background-canvas', images, canvas => {
@@ -28,18 +29,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     foreground.canvas.addEventListener('mousemove', (event) => window.render.mouseMove(event), false)
     foreground.canvas.addEventListener('mouseup', (event) => window.render.mouseUp(event), false)
 
+    document.addEventListener('keypress', event => window.render.onKeyPress(event))
+
     const canvases = { background, foreground }
-    const levelOneInstance = new LevelOne(canvases, window.render)
 
-    function createAI(user) {
-        const ai = new AI(levelOneInstance, user)
-        ai.start()
-    }
+    console.log('creating menu')
 
-    createAI(window.config.owners[2])
-    // createAI(window.config.owners[2])
-    // createAI(window.config.owners[3])
-    // createAI(window.config.owners[4])
-
-    window.requestAnimationFrame(window.render.tick.bind(window.render))
+    renderLevel(levels[8], canvases)
 });

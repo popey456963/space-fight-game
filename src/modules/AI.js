@@ -7,10 +7,17 @@ export default class AI {
         this.level = level
     }
 
+    static init(level, user) {
+        const ai = new AI(level, window.config.owners[user])
+        ai.start()
+
+        return ai
+    }
+
     start() {
         this.interval = setInterval(() => {
             this.tick()
-        }, 1000)
+        }, 2500)
     }
 
     stop() {
@@ -83,14 +90,13 @@ export default class AI {
             }
         }
 
-        shuffle(planetStates.enemy)
-
         for (let ownedPlanet of planetStates.owned) {
+            planetStates.enemy = shuffle(planetStates.enemy)
             // console.log('hello')
             // console.log(planetStates.enemy.length)
             for (let enemyPlanet of planetStates.enemy) {   
                 if (shipsToPlanet[enemyPlanet.id][this.player.id] < enemyPlanet.totalShips) {
-                    if (enemyPlanet.totalShips < ownedPlanet.shipCount[this.player.id]) {
+                    if (enemyPlanet.totalShips < ownedPlanet.shipCount[this.player.id] + Math.random() * 5) {
                         let frac_to_send = (enemyPlanet.totalShips * 1.2 + 10) / ownedPlanet.shipCount[this.player.id];
                         frac_to_send = Math.min(frac_to_send, 1.0);
                         // console.log('sending ship to other planet')

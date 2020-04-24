@@ -5,6 +5,8 @@ const pause = time => new Promise(resolve => setTimeout(resolve, time))
 
 export default class Entity {
     constructor(opts) {
+        // console.log(opts)
+
         const defaults = {
             owner: window.config.owners[0],
             size: new Loc(5, 5),

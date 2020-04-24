@@ -14,11 +14,11 @@ export default class Loc {
     }
 
     pointX(canvas) {
-        return parseInt(this.x * canvas.edge * 0.01 + canvas.xOffset)
+        return parseFloat(this.x * canvas.edge * 0.01 + canvas.xOffset)
     }
 
     pointY(canvas) {
-        return parseInt(this.y * canvas.edge * 0.01)
+        return parseFloat(this.y * canvas.edge * 0.01)
     }
 
     sizeX(canvas) {
@@ -41,7 +41,14 @@ export default class Loc {
         const halfX = object.size.x / 2
         const halfY = object.size.y / 2
 
-        return this.x + halfX > object.pos.x && this.y + halfY > object.pos.y && this.x - halfX < (object.pos.x + object.size.x) && this.y - halfY < (object.pos.y + object.size.y)
+        return this.x + halfX > object.pos.x &&
+               this.y + halfY > object.pos.y &&
+               this.x - halfX < object.pos.x &&
+               this.y - halfY < object.pos.y
+    }
+
+    clone() {
+        return new Loc(this.x, this.y)
     }
 
     add(loc) {

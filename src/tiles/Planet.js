@@ -6,6 +6,8 @@ import { zeroObject } from '../utils/proxy'
 
 export default class Planet extends Entity {
     constructor(opts) {
+        // console.log(opts)
+
         const defaults = {
             size: new Loc(3, 3),
             ships: [],
@@ -17,6 +19,9 @@ export default class Planet extends Entity {
 
         super(opts)
         Object.assign(this, defaults, opts)
+
+        this.orbitalTilt = 0.3
+        this.orbitalRadius = this.size.length() * 1 / 2
 
         for (let i = 0; i < this.initialShips; i++) {
             this.spawnNewShip();
@@ -32,9 +37,12 @@ export default class Planet extends Entity {
     }
 
     spawnNewShip() {
+        const angle = Math.random() * 2 * Math.PI
+        const curOrbitalRadius = this.orbitalRadius + (Math.random() - 0.5) 
         this.addShip(new Ship({
             canvases: { foreground: this.foreground, background: this.background },
-            pos: this.pos,
+            pos: this.pos.add(new Loc(Math.cos(angle) * curOrbitalRadius,
+                Math.sin(angle) * curOrbitalRadius * this.orbitalTilt)),
             size: new Loc(1, 1),
             owner: this.owner
         }))
@@ -43,6 +51,24 @@ export default class Planet extends Entity {
     removeShip(index) {
         this.shipCount[this.ships[index].owner.id] -= 1
         this.ships.splice(index, 1)
+    }
+
+    getOrbitalPosition(ship) {
+        let circle_x = ship.pos.x - this.pos.x
+        let circle_y = (ship.pos.y - this.pos.y) / this.orbitalTilt
+        
+        let angle = Math.atan2(circle_y, circle_x)
+        let radius = Math.sqrt(circle_x * circle_x + circle_y * circle_y)
+        return [angle, radius]
+    }
+
+    moveOrbitalShips() {
+        for (let ship of this.ships) {
+            const [angle, radius] = this.getOrbitalPosition(ship)
+            let new_angle = (angle + ship.speed / radius) % (2 * Math.PI)
+            ship.pos = this.pos.add(new Loc(Math.cos(new_angle) * radius,
+                Math.sin(new_angle) * radius * this.orbitalTilt))
+        }
     }
 
     ownedBy(user) {
@@ -111,6 +137,8 @@ export default class Planet extends Entity {
         if (t % 15 === 0) {
             this.localShipFight()
         }
+
+        this.moveOrbitalShips()
     }
 
     firstRender() {
@@ -120,32 +148,57 @@ export default class Planet extends Entity {
     render(t) {
         // check current state of board
         const competingPlayers = Object.values(this.shipCount).filter(count => count !== 0).length
-        const OFFSET = 2 / 3
+        const OFFSET = 1 / 3
+
+        for (let ship of this.ships) {
+            const circle_x = ship.pos.x - this.pos.x
+            const circle_y = ship.pos.y - this.pos.y
+            
+            const angle = Math.atan2(circle_y, circle_x)
+            const radius = Math.sqrt(circle_x * circle_x + circle_y * circle_y)
+
+            // draw a ship at it's position
+            if (radius > this.size.length() / 3.5 || angle > 0) {
+                this.foreground.drawArc(ship.pos, new Loc(0.1, 0.1), ship.owner.colour, 0, Math.PI * 2, {
+                    lineWidth: 0
+                })
+            }
+        }
 
         if (this.id in window.state.inSelection.ours || (window.state.inSelection.target && this.id === window.state.inSelection.target.id)) {
             // this window is selected
-            this.foreground.drawArc(this.pos, this.size.scale(OFFSET), 'white', 0, 2 * Math.PI)
+            this.foreground.drawArc(this.pos, this.size.scale(OFFSET * 2), [255, 255, 255], 0, 2 * Math.PI)
         }
 
         if (this.id in window.state.inSelection.ours && window.state.inSelection.target) {
             const target = window.state.inSelection.target
-            const fromPos = this.pos.move(target.pos, this.size.x * OFFSET)
+            const fromPos = this.pos.move(target.pos, this.size.x * OFFSET * 2)
             let toPos
 
             if (target.type === 'location') {
                 toPos = target.pos
             } else {
-                toPos = target.pos.move(this.pos, target.size.x * OFFSET)
+                toPos = target.pos.move(this.pos, target.size.x * OFFSET * 2)
             }
 
             // console.log(fromPos, toPos)
-            this.foreground.drawLine(fromPos, toPos)
+            this.foreground.drawLine(fromPos, toPos, {
+                strokeStyle: [255, 255, 255]
+            })
         }
 
-        if (this.health < 100) {
-            this.foreground.drawText(this.pos.add(new Loc(0, -(this.size.y * 0.9))), `${Math.round(this.health)}%`, {
-                fillStyle: this.owner.colour
-            })
+        if (competingPlayers === 1) {
+            if (this.health < 100) {
+                const startAngle = - Math.PI / 2 - (this.health / 100) * Math.PI
+                const endAngle = - Math.PI / 2 + (this.health / 100) * Math.PI
+
+                this.foreground.drawArc(this.pos, this.size, this.owner.colour, startAngle, endAngle)
+                this.foreground.drawArc(this.pos, this.size, this.owner.colour.concat(0.2), endAngle, startAngle)
+
+                // this.foreground.drawText(this.pos.add(new Loc(0, -(this.size.y * 0.9))), `${Math.round(this.health)}%`, {
+                //     fillStyle: this.owner.colour
+                // })
+            }
         }
 
         if (competingPlayers === 0) {
@@ -159,20 +212,31 @@ export default class Planet extends Entity {
                 fillStyle: this.ships[0].owner.colour
             })
         } else {
-            this.foreground.drawText(this.pos, JSON.stringify(this.shipCount), {
-                fillStyle: this.owner.colour
-            })
             // we have multiple people competing over a planet
             const totalShips = Object.values(this.shipCount).reduce((prev, sum) => prev + sum, 0)
-            let last_end_angle = 3 * Math.PI / 2
+            let lastEndAngle = undefined
+            let textOffset = 0
             for (let owner in this.shipCount) {
-                if (this.shipCount !== 0) {
-                    const next_end_angle = (last_end_angle + (this.shipCount[owner] / totalShips) * 2 * Math.PI) % (2 * Math.PI)
+                if (this.shipCount[owner] !== 0) {
+                    if (lastEndAngle === undefined) {
+                        lastEndAngle = 3/2 * Math.PI - (this.shipCount[owner] / totalShips) * Math.PI
+                    }
+                    const nextEndAngle = (lastEndAngle + (this.shipCount[owner] / totalShips) * 2 * Math.PI) % (2 * Math.PI)
                     const ownerColour = window.config.owners.find(searchOwner => searchOwner.id === owner).colour
+                    
+                    const distance = this.size.scale(2 / 3 + 2 / 6).length()
+                    const x = Math.cos(textOffset) * distance
+                    const y = Math.sin(textOffset) * distance
 
-                    this.foreground.drawArc(this.pos, this.size, ownerColour, last_end_angle, next_end_angle)
+                    this.foreground.drawText(this.pos.add(new Loc(x, y)), this.shipCount[owner], {
+                        fillStyle: ownerColour
+                    })
 
-                    last_end_angle = next_end_angle
+                    textOffset += Math.PI * 2 / competingPlayers
+
+                    this.foreground.drawArc(this.pos, this.size, ownerColour, lastEndAngle, nextEndAngle)
+
+                    lastEndAngle = nextEndAngle
                 }
             }
         }
@@ -192,8 +256,13 @@ export default class Planet extends Entity {
     }
 
     sendShip(ship, from, to) {
-        ship.setPosition(from.pos.jiggle(1))
-        ship.moveTo(to, to.pos)
+        let [angle, radius] = this.getOrbitalPosition(ship)
+        ship.startTravel(ship.pos)
+
+        ship.speed = 0.13 + Math.random() * 0.04
+
+        ship.moveTo(to, to.pos.add(new Loc(Math.cos(angle) * radius * (to.size.length() / from.size.length()),
+            Math.sin(angle) * radius * (to.size.length() / from.size.length()) * this.orbitalTilt)))
         this.renderer.addLightObject(ship)
     }
 
@@ -208,7 +277,6 @@ export default class Planet extends Entity {
                 let ship = this.ships[i]
                 if (ship.owner.id === owner.id) {
                     // console.log('sending ship', ship, to)
-
                     this.sendShip(ship, this, to)
                     this.ships.splice(i, 1)
                     i -= 1
@@ -219,6 +287,7 @@ export default class Planet extends Entity {
         }
 
         // console.log(this.shipCount, percent, removedShips)
+
 
         this.shipCount[owner.id] -= removedShips;
     }
