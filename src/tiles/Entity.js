@@ -7,7 +7,8 @@ export default class Entity {
     constructor(opts) {
         const defaults = {
             owner: window.config.owners[0],
-            size: new Loc(5, 5)
+            size: new Loc(5, 5),
+            type: 'entity'
         }
 
         Object.assign(this, defaults, opts)

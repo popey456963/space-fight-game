@@ -6,7 +6,8 @@ export default class Ship extends Entity {
         const defaults = {
             owner: window.config.owners[0],
             size: new Loc(2, 2),
-            speed: 0.1
+            speed: 1,
+            type: 'ship'
         }
 
         super(opts)
@@ -39,7 +40,7 @@ export default class Ship extends Entity {
     render(t) {
         // ignore every other tick
         if (this.travelling) {
-            this.foreground.drawImage(this.pos, 'shipIcon', this.size, Math.atan2(this.aim.x - this.pos.x, this.pos.y - this.aim.y))
+            this.foreground.drawImage(this.pos, `${this.owner.colour}ShipIcon`, this.size, Math.atan2(this.aim.x - this.pos.x, this.pos.y - this.aim.y))
         }
     }
 

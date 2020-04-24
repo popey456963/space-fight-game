@@ -11,3 +11,15 @@ export const zeroObject = {
         return true
     }
 }
+
+export const arrayObject = {
+    get: function (obj, prop) {
+        return prop in obj ? obj[prop] : []
+    },
+
+    set: function (obj, prop, value) {
+        obj[prop] = value
+
+        return true
+    }
+}

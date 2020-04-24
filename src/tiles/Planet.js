@@ -2,19 +2,7 @@ import Entity from './Entity'
 import Ship from './Ship'
 import Loc from '../modules/Loc'
 
-const proxy = {
-    get: function(obj, prop) {
-        return prop in obj ? obj[prop] : 0
-    },
-
-    set: function(obj, prop, value) {
-        obj[prop] = value
-
-        if (isNaN(value)) throw new Error('Set Not a Number')
-        
-        return true
-    }
-}
+import { zeroObject } from '../utils/proxy'
 
 export default class Planet extends Entity {
     constructor(opts) {
@@ -22,36 +10,90 @@ export default class Planet extends Entity {
             size: new Loc(3, 3),
             ships: [],
             health: 100,
-            shipCount: new Proxy({}, proxy),
-            spawnFrequency: 60
+            shipCount: new Proxy({}, zeroObject),
+            spawnFrequency: 60,
+            type: 'planet',
         }
 
         super(opts)
         Object.assign(this, defaults, opts)
-        this.shipCount[this.owner.id] = 0
 
         for (let i = 0; i < this.initialShips; i++) {
-            this.tick(0);
+            this.spawnNewShip();
+        }
+    }
+
+    get totalShips() {
+        return Object.values(this.shipCount).reduce((prev, sum) => prev + sum, 0)
+    }
+
+    get competingPlayers() {
+        return Object.values(this.shipCount).filter(count => count !== 0).length
+    }
+
+    spawnNewShip() {
+        this.addShip(new Ship({
+            canvases: { foreground: this.foreground, background: this.background },
+            pos: this.pos,
+            size: new Loc(1, 1),
+            owner: this.owner
+        }))
+    }
+
+    removeShip(index) {
+        this.shipCount[this.ships[index].owner.id] -= 1
+        this.ships.splice(index, 1)
+    }
+
+    ownedBy(user) {
+        return user.id === this.owner.id
+    }
+
+    localShipFight() {
+        let hits = {}
+        for (let ownerName in this.shipCount) {
+            for (let h = 0; h < this.shipCount[ownerName]; h++) {
+                if (Math.random() < config.options.ships.hitChance) {
+                    hits[ownerName] = ++hits[ownerName] || 1;
+                }
+            }
+        }
+
+        for (let attackingOwner in this.shipCount) {
+            for (let h = 0; h < hits[attackingOwner]; h++) {
+                let dead_ship = Math.floor(Math.random() * (this.ships.length - this.shipCount[attackingOwner]))
+                for (let attackedOwner in this.shipCount) {
+                    if (attackedOwner != attackingOwner) {
+                        dead_ship -= this.shipCount[attackedOwner]
+                        if (dead_ship < 0) {
+                            const shipIndex = this.ships.findIndex(ship => ship.owner.id === attackedOwner)
+                            this.removeShip(shipIndex)
+                            break
+                        }
+                    }
+                }
+            }
         }
     }
 
     tick(t) {
-        const totalShips = Object.values(this.shipCount).reduce((prev, sum) => prev + sum, 0)
+        const totalShips = this.totalShips
 
-        // if (t % 240 === 0 && this.owner.id === 'system') console.log(this.shipCount, this.shipCount[this.owner.id] === 0, totalShips !== 0)
         if (this.shipCount[this.owner.id] === 0 && totalShips !== 0) {
-            // taken over by someone else...
+            // the owner has no ships
+            const competingPlayers = this.competingPlayers
 
-            if (Object.values(this.shipCount).every(value => value === 0 || value === totalShips)) {
-                console.log('reducing planet health', this)
-                this.health -= 50
+            if (competingPlayers === 1) {
+                this.health -= totalShips * 0.01
             }
         }
 
         if (this.shipCount[this.owner.id] === totalShips && this.health < 100) {
             // only we are on the planet, regenerate
             // console.log('increasing planet health', this)
-            this.health += 0.5
+            this.health += totalShips * 0.01
+            // limit it at 100 health
+            this.health = Math.min(this.health, 100)
         }
 
         if (this.health < 0) {
@@ -62,56 +104,12 @@ export default class Planet extends Entity {
             this.health = 1
         }
 
-        if (t % this.spawnFrequency === 0) {
-            if (this.owner.id !== 'system' && (this.shipCount[this.owner.id] !== 0 || totalShips === 0)) {
-                this.addShip(new Ship({
-                    canvases: { foreground: this.foreground, background: this.background },
-                    pos: this.pos,
-                    size: new Loc(1, 1),
-                    owner: this.owner
-                }))
-            }
+        if (t % this.spawnFrequency === 0 && this.owner.id !== 'system' && (this.shipCount[this.owner.id] !== 0 || totalShips === 0)) {
+            this.spawnNewShip()
         }
 
         if (t % 15 === 0) {
-            // console.log(this.shipCount)
-
-            const hit_chance = 0.03;
-            let hits = {}
-            let total_ships = 0
-            for (let ownerName in this.shipCount) {
-                total_ships += this.shipCount[ownerName]
-                for (let h = 0; h < this.shipCount[ownerName]; h++) {
-                    if (Math.random() < hit_chance) {
-                        hits[ownerName] = ++hits[ownerName] || 1;
-                    }
-                }
-            }
-
-            // console.log('ship count', this.shipCount)
-            // console.log('hits', hits)
-            // console.log('total_ships', total_ships)
-
-            for (let attackingOwner in this.shipCount) {
-                for (let h = 0; h < hits[attackingOwner]; h++) {
-                    let dead_ship = Math.floor(Math.random() * (total_ships - this.shipCount[attackingOwner]))
-                    for (let attackedOwner in this.shipCount) {
-                        if (attackedOwner != attackingOwner) {
-                            dead_ship -= this.shipCount[attackedOwner]
-                            if (dead_ship < 0) {
-                                this.shipCount[attackedOwner] -= 1
-
-                                // console.log('removing ship owned by', attackedOwner, 'was attacked by', attackingOwner)
-
-                                this.ships.splice(this.ships.findIndex(ship => ship.owner.id === attackedOwner), 1)
-
-                                total_ships -= 1
-                                break
-                            }
-                        }
-                    }
-                }
-            }
+            this.localShipFight()
         }
     }
 
@@ -122,24 +120,46 @@ export default class Planet extends Entity {
     render(t) {
         // check current state of board
         const competingPlayers = Object.values(this.shipCount).filter(count => count !== 0).length
+        const OFFSET = 2 / 3
 
-        if (this.id in window.state.selectedPlanets) {
+        if (this.id in window.state.inSelection.ours || (window.state.inSelection.target && this.id === window.state.inSelection.target.id)) {
             // this window is selected
-            this.foreground.drawArc(this.pos, this.size.scale(0.9), 'white', 0, 2 * Math.PI)
+            this.foreground.drawArc(this.pos, this.size.scale(OFFSET), 'white', 0, 2 * Math.PI)
+        }
 
-            // if we're currently over a planet point at that planet
-            // else point at a point in space where the cursor is
+        if (this.id in window.state.inSelection.ours && window.state.inSelection.target) {
+            const target = window.state.inSelection.target
+            const fromPos = this.pos.move(target.pos, this.size.x * OFFSET)
+            let toPos
+
+            if (target.type === 'location') {
+                toPos = target.pos
+            } else {
+                toPos = target.pos.move(this.pos, target.size.x * OFFSET)
+            }
+
+            // console.log(fromPos, toPos)
+            this.foreground.drawLine(fromPos, toPos)
+        }
+
+        if (this.health < 100) {
+            this.foreground.drawText(this.pos.add(new Loc(0, -(this.size.y * 0.9))), `${Math.round(this.health)}%`, {
+                fillStyle: this.owner.colour
+            })
         }
 
         if (competingPlayers === 0) {
+            this.foreground.drawText(this.pos, '0', {
+                fillStyle: this.owner.colour
+            })
             // we have nobody on a planet, display nothing...
         } else if (competingPlayers === 1) {
             // we have only one person on a planet
             this.foreground.drawText(this.pos, this.ships.length, {
-                fillStyle: this.owner.colour
+                fillStyle: this.ships[0].owner.colour
             })
         } else {
-            this.foreground.drawText(this.pos, JSON.stringify(Object.keys(this.shipCount)), {
+            this.foreground.drawText(this.pos, JSON.stringify(this.shipCount), {
                 fillStyle: this.owner.colour
             })
             // we have multiple people competing over a planet
@@ -165,7 +185,9 @@ export default class Planet extends Entity {
     }
 
     onClick() {
-        window.state.selectedPlanets[this.id] = this
+        if (this.shipCount[window.user.id] > 0 || this.owner.id === window.user.id) {
+            window.state.inSelection.ours[this.id] = this
+        }
         console.log('we were clicked')
     }
 
@@ -175,10 +197,10 @@ export default class Planet extends Entity {
         this.renderer.addLightObject(ship)
     }
 
-    sendShips(owner, to) {
-        const percent = window.state.shipTransferenceRatioSliderValue
+    sendShips(owner, to, percentToSend = undefined) {
+        const percent = percentToSend ? percentToSend : window.state.shipTransferenceRatioSliderValue
 
-        const numSending = Math.ceil(this.shipCount[this.owner.id] * percent)
+        const numSending = Math.ceil(this.shipCount[owner.id] * percent)
         let removedShips = 0
 
         if (to.id != this.id) {
@@ -203,7 +225,7 @@ export default class Planet extends Entity {
 
     onUnclick(isGlobal) {
         if (!isGlobal) {
-            const selectedPlanets = Object.values(window.state.selectedPlanets)
+            const selectedPlanets = Object.values(window.state.inSelection.ours)
 
             console.log('moving to planets', selectedPlanets)
 
@@ -216,10 +238,15 @@ export default class Planet extends Entity {
     }
 
     clickOver(event, clicked) {
-        if (clicked && this.shipCount[window.state.user.id] > 0) {
-            window.state.selectedPlanets[this.id] = this
-        }
+        if (clicked) {
+            if (this.shipCount[window.user.id] > 0 || this.owner.id === window.user.id) {
+                window.state.inSelection.ours[this.id] = this
+            }
 
+            window.state.inSelection.target = this
+        } else {
+            window.state.inSelection.target = undefined
+        }
         // console.log('we were clicked over: ', clicked)
     }
 }

@@ -11,6 +11,14 @@
         {
             "id": "user2",
             "colour": "green"
+        },
+        {
+            "id": "user3",
+            "colour": "blue"
+        },
+        {
+            "id": "user4",
+            "colour": "purple"
         }
     ],
     "options": {

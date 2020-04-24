@@ -1,4 +1,5 @@
 import Loc from './Loc'
+import { zeroObject } from '../utils/proxy'
 
 export default class Render {
     constructor(background, foreground) {
@@ -97,7 +98,8 @@ export default class Render {
             }
         }
 
-        window.state.selectedPlanets = {}
+        window.state.inSelection.ours = {}
+        // window.state.inSelection.target = {}
 
         this.clicked = false
     }
@@ -105,7 +107,18 @@ export default class Render {
     mouseMove(event) {
         const pos = Loc.fromAbsolute(this.background, event.clientX, event.clientY)
 
-        this.hits(pos).forEach(object => object.clickOver(event, this.clicked))
+        const hits = new Proxy({}, zeroObject)
+        this.hits(pos).forEach(object => {
+            hits[object.type] += 1
+            object.clickOver(event, this.clicked)
+        })
+
+        if (this.clicked) {
+            if (hits['planet'] === 0 && hits['teleporter'] === 0) {
+                // not over planet
+                window.state.inSelection.target = { type: 'location', pos }
+            }
+        }
 
         for (let object of Object.values(this.globalEvents)) {
             object.clickOver(event, this.clicked)

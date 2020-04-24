@@ -5,7 +5,8 @@ import Loc from '../modules/Loc'
 export default class Slider extends Entity {
     constructor(opts) {
         const defaults = {
-            value: 1
+            value: 1,
+            type: 'slider'
         }
 
         super(opts)
